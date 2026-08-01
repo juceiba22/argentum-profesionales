@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Users, LogOut, Menu, X, Wallet, Package, Store, Megaphone, Truck, ShoppingCart, Activity, BarChart2, Receipt, UploadCloud, List, PieChart } from 'lucide-react';
+import { Users, LogOut, Menu, X, Wallet, Package, Store, Megaphone, Truck, ShoppingCart, Activity, BarChart2, Receipt, UploadCloud, List, PieChart, Briefcase } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,6 +26,8 @@ export default function Layout() {
     
     // Suelta fuera de grupos
     { path: '/clientes', label: 'Alta clientes', icon: <Users size={20} />, allowed: ['admin'] },
+
+    { path: '/mis-servicios', label: 'Mis Servicios', icon: <Briefcase size={20} />, allowed: ['admin'] },
 
     // Grupo 2: Contabilidad
     { 

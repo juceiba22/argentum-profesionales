@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Clientes from './pages/Clientes';
+import MisServicios from './pages/MisServicios';
 import Gastos from './pages/Gastos';
 import MiPerfil from './pages/MiPerfil';
 import Facturacion from './pages/Facturacion';
@@ -77,6 +78,7 @@ function App() {
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="/perfil" element={<ProtectedRoute allowedRoles={['admin', 'ventas']}><MiPerfil /></ProtectedRoute>} />
               <Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clientes /></ProtectedRoute>} />
+              <Route path="/mis-servicios" element={<ProtectedRoute allowedRoles={['admin']}><MisServicios /></ProtectedRoute>} />
               <Route path="/facturacion" element={<ProtectedRoute allowedRoles={['admin']}><Facturacion /></ProtectedRoute>} />
               <Route path="/importaciones" element={<ProtectedRoute allowedRoles={['admin']}><Importaciones /></ProtectedRoute>} />
               {/* ERP Rutas */}

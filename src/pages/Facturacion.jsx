@@ -24,7 +24,7 @@ const DOC_TIPO_OPTIONS = [
 
 export default function Facturacion() {
   const { tenantId } = useAuth();
-  const [pedidos, setPedidos] = useState([]);
+  const [servicios, setServicios] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorCarga, setErrorCarga] = useState(null); // Nuevo estado de error
@@ -34,7 +34,7 @@ export default function Facturacion() {
   const [dateTo, setDateTo] = useState('');
 
   // Estados del modal de emisión
-  const [selectedPedido, setSelectedPedido] = useState(null);
+  const [selectedServicio, setSelectedServicio] = useState(null);
   const [tipoFactura, setTipoFactura] = useState('C');
   const [alicuota, setAlicuota] = useState(0);
   const [fechaCbte, setFechaCbte] = useState(new Date().toISOString().split('T')[0]);
@@ -66,24 +66,22 @@ export default function Facturacion() {
     }
     setLoading(true);
     try {
-      // Obtener todos los pedidos pagados
+      // Obtener todos los servicios no facturados o facturados
       let query = supabase
-        .from('pedidos')
+        .from('servicios')
         .select(`
           *,
-          clientes!fk_pedidos_cliente (
+          clientes!fk_servicios_cliente (
             id, nombre, email, cuit, doc_tipo, doc_nro, condicion_iva
-          ),
-          items_pedido (*)
+          )
         `)
         .eq('tenant_id', tenantId)
-        .eq('estado', 'Pagado')
-        .order('fecha_cobro', { ascending: false });
+        .order('fecha_servicio', { ascending: false });
 
-      const { data: pedidosData, error: errorPedidos } = await query;
-      if (errorPedidos) throw errorPedidos;
+      const { data: serviciosData, error: errorServicios } = await query;
+      if (errorServicios) throw errorServicios;
 
-      setPedidos(pedidosData || []);
+      setServicios(serviciosData || []);
       setErrorCarga(null);
 
       // Obtener clientes
@@ -101,17 +99,17 @@ export default function Facturacion() {
     cargarDatos();
   }, [cargarDatos]);
 
-  const handleOpenEmision = (pedido) => {
-    setSelectedPedido(pedido);
+  const handleOpenEmision = (servicio) => {
+    setSelectedServicio(servicio);
     setTipoFactura('C');
     setAlicuota(0);
     setFechaCbte(new Date().toISOString().split('T')[0]);
-    setSelectedCliente(pedido.clientes || null);
+    setSelectedCliente(servicio.clientes || null);
     setErrorEmision('');
   };
 
   const handleCloseEmision = () => {
-    setSelectedPedido(null);
+    setSelectedServicio(null);
     setSelectedCliente(null);
     setShowNuevoCliente(false);
   };
@@ -147,7 +145,7 @@ export default function Facturacion() {
   };
 
   const emitirFacturaARCA = async () => {
-    if (!selectedPedido) return;
+    if (!selectedServicio) return;
     setProcesandoEmision(true);
     setErrorEmision('');
 
@@ -164,14 +162,14 @@ export default function Facturacion() {
     const docNro = selectedCliente ? selectedCliente.doc_nro : '0';
 
     const payload = {
-      pedidoId: selectedPedido.id,
+      pedidoId: selectedServicio.id, // Mantenemos la key para compatibilidad de API backend si existiera
       tipoCbte: 11,
       condicionIVAReceptor,
       docTipo,
       docNro,
-      importeTotal: selectedPedido.total,
-      concepto: 1, // Productos
-      descripcion: `Venta POS - Factura C - Pedido #${selectedPedido.id.substring(0, 8)}`,
+      importeTotal: selectedServicio.monto,
+      concepto: 2, // 2 = Servicios
+      descripcion: `Factura C - Servicio #${selectedServicio.id.substring(0, 8)}`,
       fechaCbte,
       alicuotaIVA: 3 // IVA_0
     };
@@ -205,15 +203,15 @@ export default function Facturacion() {
     return { neto: total, iva: 0, total: total };
   };
 
-  // Filtrado de pedidos
-  const filteredPedidos = pedidos.filter(p => {
+  // Filtrado de servicios
+  const filteredServicios = servicios.filter(p => {
     const isFiscalMatch = 
       filterFiscal === 'ALL' ||
       (filterFiscal === 'FISCAL' && p.is_fiscal) ||
       (filterFiscal === 'PENDING' && !p.is_fiscal);
 
     const clientName = p.clientes?.nombre || 'Consumidor Final';
-    const notesMatch = p.notas ? p.notas.toLowerCase().includes(search.toLowerCase()) : false;
+    const notesMatch = p.detalle ? p.detalle.toLowerCase().includes(search.toLowerCase()) : false;
     const searchMatch = 
       search === '' || 
       clientName.toLowerCase().includes(search.toLowerCase()) || 
@@ -222,20 +220,20 @@ export default function Facturacion() {
       notesMatch;
 
     const dateMatch = 
-      (!dateFrom || new Date(p.fecha_cobro) >= new Date(dateFrom)) &&
-      (!dateTo || new Date(p.fecha_cobro) <= new Date(dateTo + 'T23:59:59'));
+      (!dateFrom || new Date(p.fecha_servicio) >= new Date(dateFrom)) &&
+      (!dateTo || new Date(p.fecha_servicio) <= new Date(dateTo + 'T23:59:59'));
 
     return isFiscalMatch && searchMatch && dateMatch;
   });
 
   // Estadísticas
-  const totalFacturadoFiscal = pedidos
+  const totalFacturadoFiscal = servicios
     .filter(p => p.is_fiscal)
-    .reduce((acc, curr) => acc + curr.total, 0);
+    .reduce((acc, curr) => acc + curr.monto, 0);
 
-  const totalPendienteFiscal = pedidos
+  const totalPendienteFiscal = servicios
     .filter(p => !p.is_fiscal)
-    .reduce((acc, curr) => acc + curr.total, 0);
+    .reduce((acc, curr) => acc + curr.monto, 0);
 
   return (
     <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -244,7 +242,7 @@ export default function Facturacion() {
           <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Receipt size={32} color="var(--accent-primary)" /> Facturación Electrónica ARCA
           </h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Administra las ventas realizadas en Market y emite facturas A y B con validez fiscal.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>Administra los servicios prestados y emite facturas con validez fiscal.</p>
         </div>
       </div>
 
@@ -297,10 +295,10 @@ export default function Facturacion() {
           </div>
           <div>
             <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-              {pedidos.filter(p => p.is_fiscal).length} / {pedidos.length}
+              {servicios.filter(p => p.is_fiscal).length} / {servicios.length}
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Ventas Fiscalizadas
+              Servicios Facturados
             </p>
           </div>
         </div>
@@ -310,13 +308,13 @@ export default function Facturacion() {
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="input-group" style={{ flex: 1, minWidth: '260px', marginBottom: 0 }}>
-            <label className="input-label">Buscar Venta</label>
+            <label className="input-label">Buscar Servicio</label>
             <div style={{ position: 'relative' }}>
               <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input 
                 type="text" 
                 className="input-field" 
-                placeholder="Cliente, CUIT, N° comprobante o Pedido ID..." 
+                placeholder="Cliente, CUIT, N° comprobante o Detalle..." 
                 style={{ paddingLeft: '40px' }}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -331,7 +329,7 @@ export default function Facturacion() {
               value={filterFiscal}
               onChange={e => setFilterFiscal(e.target.value)}
             >
-              <option value="ALL">Todas las ventas</option>
+              <option value="ALL">Todos los servicios</option>
               <option value="PENDING">Pendientes de Factura</option>
               <option value="FISCAL">Emitidas (Fiscales)</option>
             </select>
@@ -359,16 +357,16 @@ export default function Facturacion() {
         </div>
       </div>
 
-      {/* Listado de Pedidos */}
+      {/* Listado de Servicios */}
       <div className="glass-panel" style={{ overflowX: 'auto', padding: '20px' }}>
         {loading ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0', gap: '10px' }}>
             <Loader2 className="animate-spin" size={32} color="var(--accent-primary)" />
-            <p style={{ color: 'var(--text-secondary)' }}>Cargando ventas y facturas...</p>
+            <p style={{ color: 'var(--text-secondary)' }}>Cargando servicios y facturas...</p>
           </div>
-        ) : filteredPedidos.length === 0 ? (
+        ) : filteredServicios.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
-            No se encontraron ventas para facturar con los filtros aplicados.
+            No se encontraron servicios para facturar con los filtros aplicados.
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem' }}>
@@ -384,40 +382,40 @@ export default function Facturacion() {
               </tr>
             </thead>
             <tbody>
-              {filteredPedidos.map(pedido => (
-                <tr key={pedido.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', verticalAlign: 'middle' }}>
+              {filteredServicios.map(servicio => (
+                <tr key={servicio.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', verticalAlign: 'middle' }}>
                   <td style={{ padding: '12px', fontFamily: 'monospace' }}>
-                    {pedido.is_fiscal ? (
+                    {servicio.is_fiscal ? (
                       <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
-                        {pedido.voucher_type} {pedido.voucher_number}
+                        {servicio.voucher_type} {servicio.voucher_number}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--text-secondary)' }}>
-                        ID #{pedido.id.substring(0, 8)}
+                        ID #{servicio.id.substring(0, 8)}
                       </span>
                     )}
                   </td>
                   <td style={{ padding: '12px' }}>
-                    {new Date(pedido.fecha_cobro || pedido.created_at).toLocaleDateString('es-AR', {
+                    {new Date(servicio.fecha_servicio || servicio.created_at).toLocaleDateString('es-AR', {
                       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     })}
                   </td>
                   <td style={{ padding: '12px' }}>
                     <div>
-                      <div style={{ fontWeight: 500 }}>{pedido.clientes?.nombre || 'Consumidor Final'}</div>
-                      {pedido.clientes?.cuit && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>CUIT: {pedido.clientes.cuit}</div>
+                      <div style={{ fontWeight: 500 }}>{servicio.clientes?.nombre || 'Consumidor Final'}</div>
+                      {servicio.clientes?.cuit && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>CUIT: {servicio.clientes.cuit}</div>
                       )}
                     </div>
                   </td>
                   <td style={{ padding: '12px', textTransform: 'capitalize' }}>
-                    {pedido.medio_pago?.replace(/_/g, ' ') || 'S/D'}
+                    Transferencia
                   </td>
                   <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold' }}>
-                    ${pedido.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    ${servicio.monto.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>
-                    {pedido.is_fiscal ? (
+                    {servicio.is_fiscal ? (
                       <span style={{
                         padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold',
                         backgroundColor: 'rgba(74, 124, 89, 0.15)', color: 'var(--success)'
@@ -435,30 +433,30 @@ export default function Facturacion() {
                   </td>
                   <td style={{ padding: '12px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      {pedido.is_fiscal ? (
+                      {servicio.is_fiscal ? (
                         <button 
                           className="btn btn-secondary" 
                           style={{ padding: '6px 12px', fontSize: '0.8rem' }}
                           onClick={() => {
-                            // Mapear campos de pedido a la estructura del PDF
+                            // Mapear campos de servicio a la estructura del PDF
                             const facturaData = {
                               tipo_cbte: 11,
-                              nro_cbte: parseInt(pedido.voucher_number.split('-')[1], 10),
-                              punto_venta: parseInt(pedido.voucher_number.split('-')[0], 10),
-                              fecha_cbte: (pedido.fecha_cobro || pedido.created_at).split('T')[0],
-                              imp_total: pedido.total,
-                              imp_neto: +(pedido.total / (1 + (pedido.alicuota_iva || 21)/100)).toFixed(2),
-                              imp_iva: +(pedido.total - (pedido.total / (1 + (pedido.alicuota_iva || 21)/100))).toFixed(2),
-                              cae: pedido.cae_number,
-                              cae_fch_vto: pedido.cae_expiration,
-                              receptor_nombre: pedido.clientes?.nombre || 'Consumidor Final',
-                              doc_nro: pedido.clientes?.doc_nro || '0',
-                              condicion_iva_receptor: pedido.clientes?.condicion_iva === 'RI' ? 1 : 5,
-                              items: pedido.items_pedido?.map(it => ({
-                                descripcion: it.producto_nombre,
-                                cantidad: it.cantidad,
-                                precio_unitario: it.precio_unitario
-                              })) || []
+                              nro_cbte: parseInt(servicio.voucher_number?.split('-')[1] || 0, 10),
+                              punto_venta: parseInt(servicio.voucher_number?.split('-')[0] || 0, 10),
+                              fecha_cbte: (servicio.fecha_servicio || servicio.created_at).split('T')[0],
+                              imp_total: servicio.monto,
+                              imp_neto: +(servicio.monto / 1.0).toFixed(2),
+                              imp_iva: 0,
+                              cae: servicio.cae_number,
+                              cae_fch_vto: servicio.cae_expiration,
+                              receptor_nombre: servicio.clientes?.nombre || 'Consumidor Final',
+                              doc_nro: servicio.clientes?.doc_nro || '0',
+                              condicion_iva_receptor: servicio.clientes?.condicion_iva === 'RI' ? 1 : 5,
+                              items: [{
+                                descripcion: servicio.detalle,
+                                cantidad: 1,
+                                precio_unitario: servicio.monto
+                              }]
                             };
                             setPdfFacturaActiva(facturaData);
                           }}
@@ -469,7 +467,7 @@ export default function Facturacion() {
                         <button 
                           className="btn btn-primary" 
                           style={{ padding: '6px 12px', fontSize: '0.8rem' }}
-                          onClick={() => handleOpenEmision(pedido)}
+                          onClick={() => handleOpenEmision(servicio)}
                         >
                           Emitir FC
                         </button>
@@ -484,7 +482,7 @@ export default function Facturacion() {
       </div>
 
       {/* Modal Checkout Fiscal (Emisión) */}
-      {selectedPedido && (
+      {selectedServicio && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
           backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
@@ -665,7 +663,7 @@ export default function Facturacion() {
 
             {/* Desglose de Importes */}
             {(() => {
-              const { neto, iva, total } = getDesglose(selectedPedido.total);
+              const { neto, iva, total } = getDesglose(selectedServicio.monto);
               return (
                 <div style={{
                   backgroundColor: 'rgba(197, 160, 89, 0.05)', border: '1px solid var(--accent-primary)',
