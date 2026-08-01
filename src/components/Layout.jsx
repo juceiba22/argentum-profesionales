@@ -33,20 +33,8 @@ export default function Layout() {
       icon: <Wallet size={20} />, 
       allowed: ['admin'],
       subItems: [
-        { path: '/erp/dashboard-liquidez', label: 'Ingresos', icon: <Activity size={20} />, allowed: ['admin'] },
-        { path: '/facturacion', label: 'Ventas', icon: <Receipt size={20} />, allowed: ['admin'] },
-        { path: '/importaciones', label: 'Importaciones', icon: <UploadCloud size={20} />, allowed: ['admin'] }
-      ]
-    },
-
-    // Grupo 4: Estadísticas
-    { 
-      label: 'Estadísticas', 
-      icon: <PieChart size={20} />, 
-      allowed: ['admin'],
-      subItems: [
-        { path: '/erp/dashboard-proveedores', label: 'Analítica Prov.', icon: <BarChart2 size={20} />, allowed: ['admin'] },
-        { path: '/erp/calculadora-costos', label: 'Calculadora Costos', icon: <BarChart2 size={20} />, allowed: ['admin'] }
+        { path: '/facturacion', label: 'Emitir factura', icon: <Receipt size={20} />, allowed: ['admin'] },
+        { path: '/importaciones', label: 'IIBB (Ingresos Brutos)', icon: <UploadCloud size={20} />, allowed: ['admin'] }
       ]
     }
   ];

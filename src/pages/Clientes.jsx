@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Search, ChevronDown, ChevronUp, Package, AlertCircle, CheckCircle2, Users } from 'lucide-react';
-import { createCliente, getClienteById, getPedidosByClienteId, getAllClientes } from '../services/clientesApi';
+import { createCliente, getClienteById, getAllClientes } from '../services/clientesApi';
 import { useActivity } from '../context/ActivityContext';
 import { useAuth } from '../context/AuthContext';
 import { useEffect } from 'react';
@@ -18,9 +18,7 @@ export default function Clientes() {
   const [searchId, setSearchId] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [clienteEncontrado, setClienteEncontrado] = useState(null);
-  const [pedidosCliente, setPedidosCliente] = useState([]);
   const [errorBuscar, setErrorBuscar] = useState('');
-  const [expandedRowId, setExpandedRowId] = useState(null);
 
   // Listado de Todos los Clientes
   const [listaClientes, setListaClientes] = useState([]);
@@ -76,16 +74,12 @@ export default function Clientes() {
     setBuscando(true);
     setErrorBuscar('');
     setClienteEncontrado(null);
-    setPedidosCliente([]);
-    setExpandedRowId(null);
 
     try {
       const cliente = await getClienteById(searchId, tenantId);
       if (!cliente) throw new Error("Cliente no encontrado");
       
       setClienteEncontrado(cliente);
-      const pedidos = await getPedidosByClienteId(searchId, tenantId);
-      setPedidosCliente(pedidos || []);
     } catch (err) {
       console.error(err);
       setErrorBuscar('No se pudo encontrar ningún cliente con ese ID exacto.');
@@ -94,9 +88,7 @@ export default function Clientes() {
     }
   };
 
-  const toggleRow = (id) => {
-    setExpandedRowId(expandedRowId === id ? null : id);
-  };
+
 
   return (
     <div className="animate-fade-in">
@@ -209,69 +201,7 @@ export default function Clientes() {
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '4px' }}>{clienteEncontrado.email} • {clienteEncontrado.telefono || 'Sin teléfono'}</p>
               </div>
 
-              <h4 style={{ fontSize: '1rem', marginBottom: '16px', color: 'var(--text-secondary)' }}>Historial de Pedidos ({pedidosCliente.length})</h4>
-              
-              {pedidosCliente.length === 0 ? (
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Este cliente aún no tiene pedidos.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {pedidosCliente.map(pedido => (
-                    <div key={pedido.id} style={{ border: '1px solid var(--glass-border)', borderRadius: '10px', overflow: 'hidden' }}>
-                      {/* Fila Principal del Pedido */}
-                      <div 
-                        onClick={() => toggleRow(pedido.id)}
-                        style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedRowId === pedido.id ? 'rgba(255,255,255,0.05)' : 'transparent', transition: 'background 0.2s' }}
-                      >
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 600 }}>${Number(pedido.total).toLocaleString()}</span>
-                            <span className={`badge badge-${pedido.estado.toLowerCase()}`}>{pedido.estado}</span>
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {new Date(pedido.created_at).toLocaleDateString()} • ID: {pedido.id.substring(0,8)}...
-                          </div>
-                        </div>
-                        {expandedRowId === pedido.id ? <ChevronUp size={20} color="var(--text-secondary)" /> : <ChevronDown size={20} color="var(--text-secondary)" />}
-                      </div>
 
-                      {/* Desglose de Ítems (Expansible) */}
-                      {expandedRowId === pedido.id && (
-                        <div className="card-dark" style={{ padding: '16px', borderTop: '1px solid var(--glass-border)' }}>
-                          <h5 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Package size={14} /> Ítems del Pedido
-                          </h5>
-                          {(!pedido.items_pedido || pedido.items_pedido.length === 0) ? (
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No hay ítems registrados.</p>
-                          ) : (
-                            <div className="table-responsive">
-                              <table style={{ width: '100%', fontSize: '0.85rem', textAlign: 'left', borderCollapse: 'collapse' }}>
-                                <thead>
-                                  <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <th style={{ paddingBottom: '8px', fontWeight: 500 }}>Producto</th>
-                                    <th style={{ paddingBottom: '8px', fontWeight: 500 }}>Cant.</th>
-                                    <th style={{ paddingBottom: '8px', fontWeight: 500 }}>Precio U.</th>
-                                    <th style={{ paddingBottom: '8px', fontWeight: 500 }}>Subtotal</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {pedido.items_pedido.map(item => (
-                                    <tr key={item.id}>
-                                      <td style={{ paddingTop: '8px' }}>{item.producto_nombre}</td>
-                                      <td style={{ paddingTop: '8px', color: 'var(--text-secondary)' }}>x{item.cantidad}</td>
-                                      <td style={{ paddingTop: '8px', color: 'var(--text-secondary)' }}>${Number(item.precio_unitario).toLocaleString()}</td>
-                                      <td style={{ paddingTop: '8px', fontWeight: 600 }}>${Number(item.subtotal).toLocaleString()}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>

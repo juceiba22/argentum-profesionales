@@ -59,22 +59,6 @@ export const getClienteById = async (id, tenantId) => {
   return data;
 };
 
-// Obtener pedidos de un cliente específico, incluyendo sus ítems
-export const getPedidosByClienteId = async (clienteId, tenantId) => {
-  if (!tenantId) return [];
-  const { data, error } = await supabase
-    .from('pedidos')
-    .select(`
-      *,
-      items_pedido (*)
-    `)
-    .eq('cliente_id', clienteId)
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data;
-};
 
 // Obtener todos los clientes
 export const getAllClientes = async (tenantId) => {
