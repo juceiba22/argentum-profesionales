@@ -71,7 +71,7 @@ export default function Facturacion() {
         .from('servicios')
         .select(`
           *,
-          clientes!fk_servicios_cliente (
+          clientes (
             id, nombre, email, cuit, doc_tipo, doc_nro, condicion_iva
           )
         `)
