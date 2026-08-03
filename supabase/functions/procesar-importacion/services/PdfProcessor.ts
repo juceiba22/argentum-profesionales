@@ -1,7 +1,7 @@
-// Using standard PDF.js in Deno compatible way (bypassing DOM issues)
-import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/build/pdf.js";
+// Agregamos "?external=canvas" para indicarle a Deno que ignore los binarios C++
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/build/pdf.js?external=canvas";
 
-// Disable workers to run cleanly in Edge environments
+// Deshabilitamos los workers para que corra limpio en entornos Serverless (Edge)
 pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
 export class PdfProcessor {
@@ -11,7 +11,8 @@ export class PdfProcessor {
         data: new Uint8Array(arrayBuffer),
         useWorkerFetch: false,
         isEvalSupported: false,
-        useSystemFonts: false
+        useSystemFonts: false,
+        disableFontFace: true // IMPORTANTE para no requerir dependencias graficas
       });
       
       const pdf = await loadingTask.promise;
