@@ -39,25 +39,35 @@ export class ImportService {
   static async deleteImportacion(importacion: Importacion): Promise<void> {
     try {
       // 1. Eliminar de Storage
+      const filesToRemove = [importacion.ruta_storage];
+      if (importacion.metadata?.ruta_csv_limpio) {
+        filesToRemove.push(importacion.metadata.ruta_csv_limpio);
+      }
+
       const { error: storageError } = await supabase.storage
         .from('importaciones')
-        .remove([importacion.ruta_storage]);
+        .remove(filesToRemove);
 
       if (storageError) {
         console.error('Error removing file from storage:', storageError.message);
-        throw new Error('No se pudo eliminar el archivo físico asociado.');
+        // Si ya no existe en storage, continuamos con la DB
       }
 
       // 2. Eliminar de DB
-      const { error: dbError } = await supabase
+      const { data: deletedRow, error: dbError } = await supabase
         .from('importaciones')
         .delete()
         .eq('id', importacion.id)
-        .eq('usuario_id', importacion.usuario_id);
+        .eq('usuario_id', importacion.usuario_id)
+        .select('*');
 
       if (dbError) {
         console.error('Error deleting record from DB:', dbError.message);
         throw new Error('No se pudo eliminar el registro de la base de datos.');
+      }
+
+      if (!deletedRow || deletedRow.length === 0) {
+        throw new Error('No se pudo eliminar el registro de la base de datos. Es posible que falte la política (Policy) de DELETE para tu usuario en Supabase.');
       }
     } catch (err: any) {
       console.error('deleteImportacion failed:', err);
