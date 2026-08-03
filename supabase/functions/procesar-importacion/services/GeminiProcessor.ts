@@ -6,7 +6,9 @@ export class GeminiProcessor {
       throw new Error("GEMINI_API_KEY no está configurada en las variables de entorno.");
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // gemini-1.5-flash fue discontinuado por Google (404 NOT_FOUND).
+    // Se actualiza a gemini-3.6-flash (GA, familia recomendada actual).
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
     let prompt = "";
 
