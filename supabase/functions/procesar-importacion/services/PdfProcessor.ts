@@ -1,20 +1,21 @@
 import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.js";
 
-// Solo intentamos asignar el worker si el objeto existe en la importación
-if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,";
-}
-
 export class PdfProcessor {
   static async process(arrayBuffer: ArrayBuffer) {
     try {
-      const loadingTask = pdfjsLib.getDocument({ 
+      // Compatibilidad con la factoría por defecto o namespace de esm.sh
+      const pdfLib = (pdfjsLib as any).default || pdfjsLib;
+
+      if (!pdfLib || typeof pdfLib.getDocument !== 'function') {
+        throw new Error("No se pudo cargar la función getDocument de pdfjs-dist");
+      }
+
+      const loadingTask = pdfLib.getDocument({ 
         data: new Uint8Array(arrayBuffer),
         useWorkerFetch: false,
         isEvalSupported: false,
         useSystemFonts: false,
-        disableFontFace: true,
-        standardFontDataUrl: "https://esm.sh/pdfjs-dist@3.11.174/standard_fonts/"
+        disableFontFace: true
       });
       
       const pdf = await loadingTask.promise;
@@ -24,7 +25,6 @@ export class PdfProcessor {
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        // Extraemos solo el texto puro
         const pageText = textContent.items.map((item: any) => item.str).join(" ");
         fullText += pageText + "\n";
       }
