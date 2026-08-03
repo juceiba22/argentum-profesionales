@@ -196,6 +196,7 @@ export class ImportService {
     try {
       await supabase.from('importaciones').update({ estado: 'Procesando', error: null }).eq('id', id_importacion);
 
+      let functionError = null;
       // Intentar invocar Edge Function Supabase
       try {
         const { data, error } = await supabase.functions.invoke('procesar-importacion', {
@@ -210,15 +211,24 @@ export class ImportService {
             .eq('id', id_importacion)
             .single();
           return finalRecord as Importacion;
+        } else {
+          functionError = error || data?.error || 'Error desconocido en Edge Function';
         }
       } catch (e) {
-        console.warn('Edge function fallback notice:', e);
+        console.warn('Edge function invocation failed:', e);
+        functionError = e;
       }
 
-      // Fallback si la Edge Function falla
+      // Obtener el registro para ver si hacemos fallback o mostramos error real
       const { data: record } = await supabase.from('importaciones').select('*').eq('id', id_importacion).single();
       if (!record) throw new Error('Registro no encontrado.');
       
+      // Para MERCADOPAGO necesitamos el CSV real, no el fallback de resumen falso
+      if (record.origen === 'MERCADOPAGO') {
+        throw new Error(`Fallo en el procesamiento de IA: ${functionError?.message || functionError || 'La IA no devolvió un Array válido.'}`);
+      }
+
+      console.warn('Ejecutando fallback para origen no-mercadopago...');
       const resultadoJSON = await this.generateReportFallback(record as Importacion);
 
       const { data: updated, error: updateError } = await supabase
