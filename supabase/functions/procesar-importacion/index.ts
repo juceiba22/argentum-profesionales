@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { stringify } from 'https://deno.land/std@0.224.0/csv/stringify.ts';
 import { ImportProcessor } from './services/ImportProcessor.ts';
 
 const corsHeaders = {
@@ -62,13 +63,37 @@ serve(async (req) => {
         record.origen
       );
 
-      // 5. Actualizar registro final con éxito
+      // 5. Generar CSV si es MERCADOPAGO
+      let metadataToSave = null;
+      if (record.origen === 'MERCADOPAGO' && Array.isArray(resultadoJSON)) {
+        try {
+          const csvString = stringify(resultadoJSON, {
+            columns: ['Cuenta', 'Fecha', 'Descripción', 'Valor', 'Saldo', 'Descripcion_OK']
+          });
+          const csvPath = `processed_${id_importacion}.csv`;
+          
+          const { error: uploadCsvError } = await supabaseClient.storage
+            .from('importaciones')
+            .upload(csvPath, csvString, { contentType: 'text/csv' });
+            
+          if (uploadCsvError) {
+            console.error("Error subiendo CSV limpio:", uploadCsvError);
+          } else {
+            metadataToSave = { ruta_csv_limpio: csvPath };
+          }
+        } catch (csvError) {
+          console.error("Error convirtiendo o subiendo CSV:", csvError);
+        }
+      }
+
+      // 6. Actualizar registro final con éxito
       await supabaseClient
         .from('importaciones')
         .update({ 
           estado: 'Procesado',
           resultado_procesamiento: resultadoJSON,
-          cantidad_registros: resultadoJSON.movimientos?.length || 0,
+          cantidad_registros: Array.isArray(resultadoJSON) ? resultadoJSON.length : (resultadoJSON.movimientos?.length || 0),
+          metadata: metadataToSave,
           error: null
         })
         .eq('id', id_importacion);

@@ -322,7 +322,17 @@ export default function Importaciones() {
                         >
                           <Download size={16} />
                         </button>
-                        <button 
+                        {imp.estado === 'Procesado' && imp.metadata?.ruta_csv_limpio && (
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Descargar CSV Limpio"
+                            onClick={() => handleDownload({ ruta_storage: imp.metadata.ruta_csv_limpio })}
+                          >
+                            <Download size={16} /> CSV Limpio
+                          </button>
+                        )}
+                        <button  
                           className="btn btn-secondary" 
                           style={{ padding: '6px', fontSize: '0.8rem', color: 'var(--danger)', borderColor: 'rgba(183,65,52,0.3)' }}
                           title="Eliminar"

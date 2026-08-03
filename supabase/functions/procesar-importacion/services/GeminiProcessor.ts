@@ -8,7 +8,41 @@ export class GeminiProcessor {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const prompt = `
+    let prompt = "";
+
+    if (origen === 'MERCADOPAGO') {
+      prompt = `
+Eres un experto en transformación de datos y análisis de extractos.
+Se te proporciona el contenido crudo de un extracto de MERCADO PAGO.
+Debes extraer todas las transacciones de la tabla del documento y devolver ESTRICTAMENTE un JSON Array con la información procesada y limpia. No agregues texto ni comentarios fuera del JSON Array.
+
+Reglas de limpieza:
+1. Formato de fecha: 'YYYY-MM-DD'.
+2. Descripción: Unificar saltos de línea (un solo string limpio).
+3. 'Valor' y 'Saldo': Números puros (ej: 1234.56), sin el símbolo '$' ni separadores de miles. Si es un egreso (gasto/envío), usa el signo negativo en 'Valor'.
+4. Crea el campo 'Descripcion_OK' basado en la descripción original siguiendo estas reglas exactas:
+   - Si empieza con 'Transferencia recibida' -> 'Transferencia recibida'
+   - Si empieza con 'Transferencia enviada' -> 'Transferencia enviada'
+   - Si empieza con 'Pago' -> 'Pago'
+   - Si empieza con 'Envío de dinero' -> 'Envío de dinero'
+   - Caso contrario -> Copiar descripción original.
+5. Crea el campo 'Cuenta' siempre con el valor exacto 'MERCADO PAGO'.
+
+Estructura requerida de cada objeto en el JSON Array:
+{
+  "Cuenta": "MERCADO PAGO",
+  "Fecha": "YYYY-MM-DD",
+  "Descripción": "Descripción original limpia",
+  "Valor": 0.0,
+  "Saldo": 0.0,
+  "Descripcion_OK": "Valor según reglas"
+}
+
+Contenido a analizar:
+${JSON.stringify(estructuraExtraida).substring(0, 30000)}
+`;
+    } else {
+      prompt = `
 Eres un asistente experto en conciliación bancaria y contable.
 Se te proporciona el contenido crudo (filas o texto) de una importación cuyo origen es: ${origen}.
 Tu objetivo es analizar la información, estructurarla y devolverla ESTRICTAMENTE en formato JSON, sin comentarios adicionales ni markdown.
@@ -38,6 +72,7 @@ Ten en cuenta que:
 Contenido a analizar:
 ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
 `;
+    }
 
     try {
       const response = await fetch(url, {
