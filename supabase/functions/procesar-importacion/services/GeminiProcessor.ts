@@ -8,7 +8,7 @@ export class GeminiProcessor {
 
     // gemini-1.5-flash fue discontinuado por Google (404 NOT_FOUND).
     // Se actualiza a gemini-3.6-flash (GA, familia recomendada actual).
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
     let prompt = "";
 
@@ -92,7 +92,7 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
           generationConfig: {
             responseMimeType: "application/json",
             thinkingConfig: {
-              thinkingBudget: 0
+              thinkingLevel: "low"
             }
           }
         }),
