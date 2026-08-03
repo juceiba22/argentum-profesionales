@@ -76,51 +76,59 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
 `;
     }
 
-    try {
-      console.log("Inicio llamada Gemini:", Date.now());
+    const maxIntentos = 2;
+    for (let intento = 1; intento <= maxIntentos; intento++) {
+      try {
+        console.log(`Inicio llamada Gemini (intento ${intento}):`, Date.now());
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 100000); // 100s máximo
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 130000); // 130s máximo
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            thinkingConfig: {
-              thinkingLevel: "low"
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: "application/json",
+              maxOutputTokens: 8192,
+              thinkingConfig: {
+                thinkingLevel: "low"
+              }
             }
-          }
-        }),
-        signal: controller.signal
-      });
+          }),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      console.log("Fin llamada Gemini:", Date.now());
+        console.log(`Fin llamada Gemini (intento ${intento}):`, Date.now());
 
-      if (!response.ok) {
-        const errData = await response.text();
-        throw new Error(`Error en API de Gemini: ${response.status} - ${errData}`);
+        if (!response.ok) {
+          const errData = await response.text();
+          throw new Error(`Error en API de Gemini: ${response.status} - ${errData}`);
+        }
+
+        const data = await response.json();
+        const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!aiText) {
+          throw new Error("Gemini no devolvió una respuesta válida.");
+        }
+
+        const parsedJSON = JSON.parse(aiText);
+        return parsedJSON;
+        
+      } catch (error: any) {
+        console.error(`GeminiProcessor intento ${intento} falló:`, error);
+        if (intento === maxIntentos) {
+          throw new Error(`Fallo el procesamiento con IA tras ${maxIntentos} intentos: ${error.message}`);
+        }
+        // si falla, espera 2s y reintenta
+        await new Promise(r => setTimeout(r, 2000));
       }
-
-      const data = await response.json();
-      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!aiText) {
-        throw new Error("Gemini no devolvió una respuesta válida.");
-      }
-
-      const parsedJSON = JSON.parse(aiText);
-      return parsedJSON;
-      
-    } catch (error: any) {
-      console.error("GeminiProcessor Error:", error);
-      throw new Error(`Fallo el procesamiento con IA: ${error.message}`);
     }
   }
 }

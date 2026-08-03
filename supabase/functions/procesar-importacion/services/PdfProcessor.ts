@@ -20,6 +20,8 @@ export class PdfProcessor {
 
       const fullText = (Array.isArray(text) ? text.join("\n") : text).trim();
 
+      console.log("Caracteres extraídos del PDF:", fullText.length);
+
       return {
         tipo: "PDF",
         estructura: {
