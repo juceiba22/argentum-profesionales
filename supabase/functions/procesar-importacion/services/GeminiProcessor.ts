@@ -82,7 +82,7 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
         console.log(`Inicio llamada Gemini (intento ${intento}):`, Date.now());
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s por intento
+        const timeoutId = setTimeout(() => controller.abort(), 130000); // 130s por intento
 
         const response = await fetch(url, {
           method: "POST",
