@@ -8,7 +8,7 @@ export class GeminiProcessor {
 
     // gemini-1.5-flash fue discontinuado por Google (404 NOT_FOUND).
     // Se actualiza a gemini-3.6-flash (GA, familia recomendada actual).
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     let prompt = "";
 
@@ -79,6 +79,9 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
     try {
       console.log("Inicio llamada Gemini:", Date.now());
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 100000); // 100s máximo
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -87,10 +90,16 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            responseMimeType: "application/json"
+            responseMimeType: "application/json",
+            thinkingConfig: {
+              thinkingBudget: 0
+            }
           }
-        })
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       console.log("Fin llamada Gemini:", Date.now());
 
