@@ -93,7 +93,7 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               responseMimeType: "application/json",
-              maxOutputTokens: 8192,
+              maxOutputTokens: 32768,
               thinkingConfig: {
                 thinkingLevel: "low"
               }
