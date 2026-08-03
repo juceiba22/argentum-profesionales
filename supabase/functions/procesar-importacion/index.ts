@@ -26,7 +26,6 @@ serve(async (req) => {
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    // 1. Obtener registro de la tabla importaciones
     const { data: record, error: fetchError } = await supabaseClient
       .from('importaciones')
       .select('*')
@@ -34,28 +33,22 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !record) {
-      throw new Error(`Importación no encontrada o error de permisos: ${fetchError?.message}`);
+      throw new Error(`Importación no encontrada: ${fetchError?.message}`);
     }
 
-    // 2. Marcar como Procesando
-    await supabaseClient
-      .from('importaciones')
-      .update({ estado: 'Procesando' })
-      .eq('id', id_importacion);
+    await supabaseClient.from('importaciones').update({ estado: 'Procesando' }).eq('id', id_importacion);
 
     try {
-      // 3. Descargar archivo
       const { data: fileData, error: downloadError } = await supabaseClient.storage
         .from('importaciones')
         .download(record.ruta_storage);
 
       if (downloadError || !fileData) {
-        throw new Error(`No se pudo descargar el archivo físico: ${downloadError?.message}`);
+        throw new Error(`No se pudo descargar el archivo: ${downloadError?.message}`);
       }
 
       const arrayBuffer = await fileData.arrayBuffer();
 
-      // 4. Procesar el archivo a formato intermedio JSON y enviarlo a Gemini
       const resultadoJSON = await ImportProcessor.processFile(
         arrayBuffer, 
         record.nombre_archivo, 
@@ -63,18 +56,18 @@ serve(async (req) => {
         record.origen
       );
 
-      // 5. Generar CSV si es MERCADOPAGO
       let metadataToSave = null;
       if (record.origen === 'MERCADOPAGO' && Array.isArray(resultadoJSON)) {
         try {
           const csvString = stringify(resultadoJSON, {
             columns: ['Cuenta', 'Fecha', 'Descripción', 'Valor', 'Saldo', 'Descripcion_OK']
           });
-          const csvPath = `processed_${id_importacion}.csv`;
+          
+          const csvPath = `${record.usuario_id}/processed_${id_importacion}.csv`;
           
           const { error: uploadCsvError } = await supabaseClient.storage
             .from('importaciones')
-            .upload(csvPath, csvString, { contentType: 'text/csv' });
+            .upload(csvPath, csvString, { contentType: 'text/csv', upsert: true });
             
           if (uploadCsvError) {
             console.error("Error subiendo CSV limpio:", uploadCsvError);
@@ -82,11 +75,10 @@ serve(async (req) => {
             metadataToSave = { ruta_csv_limpio: csvPath };
           }
         } catch (csvError) {
-          console.error("Error convirtiendo o subiendo CSV:", csvError);
+          console.error("Error convirtiendo a CSV:", csvError);
         }
       }
 
-      // 6. Actualizar registro final con éxito
       await supabaseClient
         .from('importaciones')
         .update({ 
@@ -105,20 +97,10 @@ serve(async (req) => {
 
     } catch (processingError: any) {
       console.error('Error durante el procesamiento:', processingError);
-      // Guardar el error en DB
-      await supabaseClient
-        .from('importaciones')
-        .update({ 
-          estado: 'Error',
-          error: processingError.message || 'Error inesperado durante el procesamiento'
-        })
-        .eq('id', id_importacion);
-
+      await supabaseClient.from('importaciones').update({ estado: 'Error', error: processingError.message }).eq('id', id_importacion);
       throw processingError;
     }
-
   } catch (error: any) {
-    console.error('Error global:', error);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

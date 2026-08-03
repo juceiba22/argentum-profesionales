@@ -184,44 +184,33 @@ export class ImportService {
    */
   static async triggerProcessImportacion(id_importacion: string): Promise<Importacion> {
     try {
-      // 1. Actualizar estado a Procesando en DB
-      await supabase
-        .from('importaciones')
-        .update({ estado: 'Procesando', error: null })
-        .eq('id', id_importacion);
+      await supabase.from('importaciones').update({ estado: 'Procesando', error: null }).eq('id', id_importacion);
 
-      let resultadoJSON: ReporteGemini | null = null;
-
-      // 2. Intentar invocar Edge Function Supabase procesar-importacion
+      // Intentar invocar Edge Function Supabase
       try {
         const { data, error } = await supabase.functions.invoke('procesar-importacion', {
           body: { id_importacion }
         });
-        if (!error && data?.data) {
-          resultadoJSON = data.data as ReporteGemini;
+        
+        if (!error && data?.success) {
+          // La Edge Function tuvo éxito y ya guardó el CSV en la DB. Retornamos la fila final.
+          const { data: finalRecord } = await supabase
+            .from('importaciones')
+            .select('*')
+            .eq('id', id_importacion)
+            .single();
+          return finalRecord as Importacion;
         }
       } catch (e) {
-        console.warn('Edge function invoke fallback notice:', e);
+        console.warn('Edge function fallback notice:', e);
       }
 
-      // 3. Fallback inteligente si la Edge Function no está desplegada o no devolvió datos
-      if (!resultadoJSON) {
-        const { data: record } = await supabase
-          .from('importaciones')
-          .select('*')
-          .eq('id', id_importacion)
-          .single();
+      // Fallback si la Edge Function falla
+      const { data: record } = await supabase.from('importaciones').select('*').eq('id', id_importacion).single();
+      if (!record) throw new Error('Registro no encontrado.');
+      
+      const resultadoJSON = await this.generateReportFallback(record as Importacion);
 
-        if (record) {
-          resultadoJSON = await this.generateReportFallback(record as Importacion);
-        }
-      }
-
-      if (!resultadoJSON) {
-        throw new Error('No se pudo generar el reporte de IA.');
-      }
-
-      // 4. Actualizar registro en DB como Procesado con resultado_procesamiento
       const { data: updated, error: updateError } = await supabase
         .from('importaciones')
         .update({
@@ -234,19 +223,12 @@ export class ImportService {
         .select('*')
         .single();
 
-      if (updateError || !updated) {
-        console.error('Error updating DB with processed report:', updateError?.message);
-        throw new Error('Error al guardar el reporte en la base de datos.');
-      }
-
+      if (updateError || !updated) throw new Error('Error al guardar el reporte.');
       return updated as Importacion;
 
     } catch (err: any) {
       console.error('triggerProcessImportacion failed:', err);
-      await supabase
-        .from('importaciones')
-        .update({ estado: 'Error', error: err.message || 'Error al procesar con IA' })
-        .eq('id', id_importacion);
+      await supabase.from('importaciones').update({ estado: 'Error', error: err.message }).eq('id', id_importacion);
       throw err;
     }
   }
