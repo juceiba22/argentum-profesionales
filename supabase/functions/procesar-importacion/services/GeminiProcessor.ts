@@ -82,7 +82,7 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
         console.log(`Inicio llamada Gemini (intento ${intento}):`, Date.now());
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 130000); // 130s máximo
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s por intento
 
         const response = await fetch(url, {
           method: "POST",
@@ -123,9 +123,13 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
         
       } catch (error: any) {
         console.error(`GeminiProcessor intento ${intento} falló:`, error);
-        if (intento === maxIntentos) {
-          throw new Error(`Fallo el procesamiento con IA tras ${maxIntentos} intentos: ${error.message}`);
+
+        const fueTimeout = error.name === "AbortError";
+
+        if (intento === maxIntentos || fueTimeout) {
+          throw new Error(`Fallo el procesamiento con IA tras ${intento} intento(s): ${error.message}`);
         }
+        
         // si falla, espera 2s y reintenta
         await new Promise(r => setTimeout(r, 2000));
       }
