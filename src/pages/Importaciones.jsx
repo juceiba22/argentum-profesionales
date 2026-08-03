@@ -77,10 +77,9 @@ export default function Importaciones() {
         showSuccess('Documento recibido y archivado correctamente.');
         fetchImportaciones();
         
-        // NOTA: Se comenta el trigger a la IA para evitar consumo de API innecesario
         ImportService.triggerProcessImportacion(result.data.id)
-         .then(() => fetchImportaciones())
-         .catch(e => console.error('Error procesando:', e));
+          .then(() => fetchImportaciones())
+          .catch(e => console.error('Error procesando:', e));
       } else {
         showError(result.error || 'No fue posible subir el archivo');
       }
@@ -276,6 +275,7 @@ export default function Importaciones() {
                   <th style={{ textAlign: 'center' }}>Origen</th>
                   <th style={{ textAlign: 'center' }}>Tamaño</th>
                   <th style={{ textAlign: 'center' }}>Fecha</th>
+                  <th style={{ textAlign: 'center' }}>Estado</th>
                   <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
               </thead>
@@ -303,6 +303,9 @@ export default function Importaciones() {
                     </td>
                     <td style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                       {new Date(imp.created_at).toLocaleDateString()}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: imp.estado === 'Procesado' ? 'var(--success)' : (imp.estado === 'Error' ? 'var(--danger)' : 'var(--warning)') }}>
+                      {imp.estado}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
