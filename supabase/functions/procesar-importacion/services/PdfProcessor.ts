@@ -1,8 +1,9 @@
-// Usamos la versión legacy/build limpia de dependencias de node/canvas
 import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.js";
 
-// Necesitamos asignar un worker falso o vacío para evitar que intente instanciar workers en Edge
-pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,";
+// Solo intentamos asignar el worker si el objeto existe en la importación
+if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,";
+}
 
 export class PdfProcessor {
   static async process(arrayBuffer: ArrayBuffer) {
