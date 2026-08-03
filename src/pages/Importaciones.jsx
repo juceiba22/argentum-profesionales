@@ -78,9 +78,9 @@ export default function Importaciones() {
         fetchImportaciones();
         
         // NOTA: Se comenta el trigger a la IA para evitar consumo de API innecesario
-        // ImportService.triggerProcessImportacion(result.data.id)
-        //  .then(() => fetchImportaciones())
-        //  .catch(e => console.error('Error procesando:', e));
+        ImportService.triggerProcessImportacion(result.data.id)
+         .then(() => fetchImportaciones())
+         .catch(e => console.error('Error procesando:', e));
       } else {
         showError(result.error || 'No fue posible subir el archivo');
       }
