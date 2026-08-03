@@ -1,8 +1,8 @@
-// Agregamos "?external=canvas" para indicarle a Deno que ignore los binarios C++
-import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/build/pdf.js?external=canvas";
+// Usamos la versión legacy/build limpia de dependencias de node/canvas
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.js";
 
-// Deshabilitamos los workers para que corra limpio en entornos Serverless (Edge)
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+// Necesitamos asignar un worker falso o vacío para evitar que intente instanciar workers en Edge
+pdfjsLib.GlobalWorkerOptions.workerSrc = "data:text/javascript;base64,";
 
 export class PdfProcessor {
   static async process(arrayBuffer: ArrayBuffer) {
@@ -12,7 +12,8 @@ export class PdfProcessor {
         useWorkerFetch: false,
         isEvalSupported: false,
         useSystemFonts: false,
-        disableFontFace: true // IMPORTANTE para no requerir dependencias graficas
+        disableFontFace: true,
+        standardFontDataUrl: "https://esm.sh/pdfjs-dist@3.11.174/standard_fonts/"
       });
       
       const pdf = await loadingTask.promise;
@@ -22,6 +23,7 @@ export class PdfProcessor {
       for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
+        // Extraemos solo el texto puro
         const pageText = textContent.items.map((item: any) => item.str).join(" ");
         fullText += pageText + "\n";
       }
@@ -41,6 +43,7 @@ export class PdfProcessor {
         }
       };
     } catch (error: any) {
+      console.error("Error detallado en PDFProcessor:", error);
       throw new Error(`Error al procesar PDF: ${error.message}`);
     }
   }
