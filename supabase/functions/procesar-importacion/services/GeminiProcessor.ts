@@ -77,6 +77,8 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
     }
 
     try {
+      console.log("Inicio llamada Gemini:", Date.now());
+
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -89,6 +91,8 @@ ${JSON.stringify(estructuraExtraida).substring(0, 30000)} // Limite de seguridad
           }
         })
       });
+
+      console.log("Fin llamada Gemini:", Date.now());
 
       if (!response.ok) {
         const errData = await response.text();

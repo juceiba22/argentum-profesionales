@@ -11,8 +11,12 @@ export class PdfProcessor {
     try {
       const data = new Uint8Array(arrayBuffer);
 
+      console.log("Inicio extracción PDF:", Date.now());
+
       const pdf = await getDocumentProxy(data);
       const { totalPages, text } = await extractText(pdf, { mergePages: true });
+
+      console.log("Fin extracción PDF:", Date.now());
 
       const fullText = (Array.isArray(text) ? text.join("\n") : text).trim();
 
